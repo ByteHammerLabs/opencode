@@ -33,7 +33,7 @@ import { ModelID, ProviderID } from "@/provider/schema"
 import { Permission } from "@/permission"
 import { Global } from "@/global"
 import type { LanguageModelV2Usage } from "@ai-sdk/provider"
-import { Effect, Layer, Scope, ServiceMap } from "effect"
+import { Effect, Layer, Scope, ServiceMap, Stream } from "effect"
 import { makeRuntime } from "@/effect/run-service"
 
 export namespace Session {
@@ -594,12 +594,10 @@ export namespace Session {
 
       const messages = Effect.fn("Session.messages")(function* (input: { sessionID: SessionID; limit?: number }) {
         if (input.limit) {
-          const result = yield* MessageV2.pageEffect({ sessionID: input.sessionID, limit: input.limit })
-          return result.items
+          return MessageV2.page({ sessionID: input.sessionID, limit: input.limit }).items
         }
-        const all = yield* MessageV2.streamEffect(input.sessionID)
-        all.reverse()
-        return all
+        const all = yield* Stream.runCollect(MessageV2.streamMessages(input.sessionID))
+        return Array.from(all).reverse()
       })
 
       const removeMessage = Effect.fn("Session.removeMessage")(function* (input: {
